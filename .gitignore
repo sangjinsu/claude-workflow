@@ -1,0 +1,4 @@
+.omc/
+.claude/settings.local.json
+.workflows/.generated/
+.workflows/.runs/
