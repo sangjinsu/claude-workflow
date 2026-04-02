@@ -1,0 +1,39 @@
+workflow:
+  name: "배포 사전 점검"
+  description: "서비스 배포 전 상태를 확인하는 워크플로우"
+  version: "1.0.0"
+  tags: [deploy, pre-check]
+
+config:
+  base:
+    SERVICE_NAME: "my-service"
+    NAMESPACE: "default"
+    CLUSTER: "my-cluster"
+    HEALTH_URL: "http://localhost:8080/health"
+
+steps:
+  - id: check-pods
+    name: "Pod 상태 확인"
+    type: command
+    description: "현재 배포된 Pod의 상태를 확인합니다"
+    commands:
+      - "kubectl get pods -n ${NAMESPACE} -l app=${SERVICE_NAME} --context ${CLUSTER}"
+    on_failure: abort
+
+  - id: health-check
+    name: "헬스체크"
+    type: command
+    description: "서비스의 헬스체크 엔드포인트를 확인합니다"
+    commands:
+      - "curl -sf ${HEALTH_URL} || echo 'Health check failed'"
+    depends_on: [check-pods]
+    on_failure: continue
+
+  - id: recent-logs
+    name: "최근 로그 확인"
+    type: command
+    description: "최근 로그에서 에러가 있는지 확인합니다"
+    commands:
+      - "kubectl logs -n ${NAMESPACE} -l app=${SERVICE_NAME} --context ${CLUSTER} --tail=20 --since=5m"
+    depends_on: [check-pods]
+    on_failure: continue

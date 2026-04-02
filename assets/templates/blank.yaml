@@ -1,0 +1,18 @@
+workflow:
+  name: "워크플로우 이름"
+  description: "워크플로우 설명"
+  version: "1.0.0"
+  tags: []
+
+config:
+  base:
+    VAR_NAME: "value"
+
+steps:
+  - id: step-1
+    name: "첫 번째 단계"
+    type: command
+    description: "단계 설명"
+    commands:
+      - "echo 'Hello from ${VAR_NAME}'"
+    on_failure: abort

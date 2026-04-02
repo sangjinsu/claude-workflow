@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "workflow-builder",
+  "description": "YAML 워크플로우를 정의하고 실행하는 Claude Code 플러그인. 배포, 인시던트 대응 등 반복 작업을 자동화합니다.",
+  "owner": {
+    "name": "sangjinsu"
+  },
+  "plugins": [
+    {
+      "name": "workflow-builder",
+      "description": "YAML workflow definition and execution for Claude Code",
+      "version": "0.1.0",
+      "source": "./",
+      "category": "productivity",
+      "tags": ["workflow", "automation", "yaml", "pipeline"]
+    }
+  ],
+  "version": "0.1.0"
+}
