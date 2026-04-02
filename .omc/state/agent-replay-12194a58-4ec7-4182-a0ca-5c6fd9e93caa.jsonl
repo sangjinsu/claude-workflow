@@ -1,0 +1,17 @@
+{"t":0,"agent":"a278b30","agent_type":"general-purpose","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a278b30","agent_type":"general-purpose","event":"agent_stop","success":true,"duration_ms":49480}
+{"t":0,"agent":"afb09d3","agent_type":"general-purpose","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"afb09d3","agent_type":"general-purpose","event":"agent_stop","success":true,"duration_ms":73010775}
+{"t":0,"agent":"ae2f36d","agent_type":"general-purpose","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"ae2f36d","agent_type":"general-purpose","event":"agent_stop","success":true,"duration_ms":177175}
+{"t":0,"agent":"ac5a500","agent_type":"general-purpose","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a143403","agent_type":"general-purpose","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a143403","agent_type":"general-purpose","event":"agent_stop","success":true,"duration_ms":186416}
+{"t":0,"agent":"aad8778","agent_type":"executor","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"adabc4d","agent_type":"executor","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"adabc4d","agent_type":"executor","event":"agent_stop","success":true,"duration_ms":107593}
+{"t":0,"agent":"aca5a45","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a4a1d2e","agent_type":"general-purpose","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"system","event":"skill_invoked","skill_name":"browse"}
+{"t":0,"agent":"aca5a45","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":159047}
+{"t":0,"agent":"a4a1d2e","agent_type":"general-purpose","event":"agent_stop","success":true,"duration_ms":253782}

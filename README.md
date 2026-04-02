@@ -1,6 +1,6 @@
-# workflow-builder
+# claude-workflow
 
-YAML 워크플로우를 정의하고 Claude Code 안에서 실행하는 플러그인.
+Define and run YAML workflows inside Claude Code. Zero dependencies.
 
 배포, 인시던트 대응, 인프라 점검 등 반복되는 작업 흐름을 YAML로 정의하면
 Claude Code가 각 단계를 순서대로 실행합니다.
@@ -17,13 +17,13 @@ Claude Code가 각 단계를 순서대로 실행합니다.
 ### Claude Code 마켓플레이스 (권장)
 
 ```
-/plugin install sangjinsu/workflow-builder
+/plugin install sangjinsu/claude-workflow
 ```
 
 ### 수동 설치
 
 ```bash
-git clone https://github.com/sangjinsu/workflow-builder.git ~/.claude/plugins/workflow-builder
+git clone https://github.com/sangjinsu/claude-workflow.git ~/.claude/plugins/claude-workflow
 ```
 
 ## 사용법

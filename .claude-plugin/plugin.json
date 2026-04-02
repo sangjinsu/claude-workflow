@@ -1,11 +1,11 @@
 {
-  "name": "workflow-builder",
+  "name": "claude-workflow",
   "version": "0.1.0",
-  "description": "YAML 워크플로우를 정의하고 Claude Code에서 실행하는 플러그인",
+  "description": "Define and run YAML workflows inside Claude Code. Zero dependencies.",
   "author": {
     "name": "sangjinsu"
   },
-  "repository": "https://github.com/sangjinsu/workflow-builder",
+  "repository": "https://github.com/sangjinsu/claude-workflow",
   "license": "MIT",
   "keywords": ["workflow", "yaml", "automation", "pipeline", "deploy"]
 }
