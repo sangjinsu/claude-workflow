@@ -1,0 +1,41 @@
+workflow:
+  name: "Hello World 테스트"
+  description: "외부 도구 없이 echo만 사용하는 테스트 워크플로우"
+  version: "1.0.0"
+
+config:
+  base:
+    GREETING: "안녕하세요"
+    TARGET: "Claude Code"
+    DIVIDER: "--------------------------"
+
+steps:
+  - id: welcome
+    name: "환영 메시지"
+    type: command
+    commands:
+      - 'echo "${DIVIDER}"'
+      - 'echo "${GREETING}, ${TARGET}!"'
+      - 'echo "${DIVIDER}"'
+    on_failure: abort
+
+  - id: system-info
+    name: "시스템 정보 출력"
+    type: command
+    description: "현재 시스템의 기본 정보를 출력합니다"
+    commands:
+      - 'echo "현재 시간: $(date)"'
+      - 'echo "작업 디렉토리: $(pwd)"'
+      - 'echo "사용자: $(whoami)"'
+    depends_on: [welcome]
+    on_failure: continue
+
+  - id: goodbye
+    name: "종료 메시지"
+    type: command
+    commands:
+      - 'echo "${DIVIDER}"'
+      - 'echo "워크플로우 테스트 완료! 감사합니다."'
+      - 'echo "${DIVIDER}"'
+    depends_on: [system-info]
+    on_failure: abort

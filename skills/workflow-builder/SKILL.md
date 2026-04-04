@@ -4,13 +4,8 @@ description: >
   워크플로우 YAML을 생성하고 실행하는 스킬.
   "워크플로우", "workflow", "배포 플로우", "작업 흐름" 언급 시 사용.
   /workflow-builder로 직접 호출 가능.
-allowed-tools:
-  - Bash(cat:*)
-  - Bash(mkdir:*)
-  - Bash(ls:*)
-  - Bash(cp:*)
-  - Read
-  - Write
+argument-hint: <run|create|list|show|validate> [name]
+allowed-tools: [Read, Write, Bash, Glob, Grep]
 ---
 
 # Workflow Builder
@@ -68,6 +63,7 @@ Read 도구로 파일을 읽는다. YAML 내용에서 다음을 추출:
 - `steps`가 비어있지 않은지
 - 각 step에 `id`, `type`, `commands`가 있는지
 - `type`이 `command`인지 (아니면 "MVP에서는 command 타입만 지원합니다" 경고 후 건너뜀)
+  - 건너뛴 step은 의존성 해결 시 "완료"로 간주한다. 해당 step에 의존하는 다른 step은 정상적으로 실행된다.
 - step id 중복 없는지
 - `depends_on`의 모든 참조가 존재하는 step id인지
 
@@ -128,15 +124,17 @@ e) 모든 command 성공 시: "  Step [id] 완료"
    - `.workflows/` (현재 프로젝트)
    - `~/.workflows/` (글로벌)
 3. 사용 가능한 템플릿을 보여준다:
-
-!`ls ${CLAUDE_SKILL_DIR}/../../assets/templates/`
+   - `deploy` — 배포 사전 점검 (kubectl + curl)
+   - `blank` — 최소 구조 템플릿
 
 4. 인자로 template이 지정되었으면 해당 템플릿 사용, 아니면 선택하게 한다
-5. 템플릿을 선택한 위치에 복사한다:
+5. 프로젝트 루트의 `assets/templates/` 디렉토리에서 템플릿을 찾아 선택한 위치에 복사한다. 템플릿 검색 순서:
+   1. 현재 작업 디렉토리의 `assets/templates/<template>.yaml`
+   2. 플러그인 소스의 `assets/templates/<template>.yaml`
 
 ```bash
 mkdir -p <destination_dir>
-cp "${CLAUDE_SKILL_DIR}/../../assets/templates/<template>.yaml" "<destination_dir>/<workflow_name>.yaml"
+cp "<found_template_path>" "<destination_dir>/<workflow_name>.yaml"
 ```
 
 6. 안내: "워크플로우가 생성되었습니다. 파일을 열어 config.base 변수와 commands를 수정하세요."
