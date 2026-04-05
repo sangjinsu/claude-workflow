@@ -1,0 +1,48 @@
+workflow:
+  name: "Prompt 타입 테스트"
+  description: "미지원 타입(prompt)의 처리를 검증하는 워크플로우"
+  version: "1.0.0"
+
+config:
+  base:
+    APP_NAME: "테스트앱"
+
+steps:
+  - id: start
+    name: "시작 메시지"
+    type: command
+    commands:
+      - 'echo "워크플로우 시작: ${APP_NAME}"'
+    on_failure: abort
+
+  - id: ask-user
+    name: "사용자 확인 요청"
+    type: prompt
+    commands:
+      - 'echo "계속 진행하시겠습니까?"'
+    depends_on: [start]
+    on_failure: continue
+
+  - id: middle
+    name: "중간 단계"
+    type: command
+    commands:
+      - 'echo "중간 단계 실행 중..."'
+    depends_on: [ask-user]
+    on_failure: abort
+
+  - id: review
+    name: "리뷰 요청"
+    type: prompt
+    commands:
+      - 'echo "결과를 확인하세요"'
+    depends_on: [middle]
+    on_failure: continue
+
+  - id: finish
+    name: "완료"
+    type: command
+    commands:
+      - 'echo "${APP_NAME} 워크플로우 완료!"'
+    depends_on: [review]
+    on_failure: abort

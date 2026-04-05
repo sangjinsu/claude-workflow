@@ -26,12 +26,26 @@ Claude Code가 각 단계를 순서대로 실행합니다.
 git clone https://github.com/sangjinsu/claude-workflow.git ~/.claude/plugins/claude-workflow
 ```
 
+## 빠른 시작
+
+```
+/workflow-builder run hello
+```
+
+`.workflows/hello.yaml`을 실행합니다. 출력 예시:
+```
+▶ Step [1]/[3]: 환영 메시지 (id: welcome)
+▶ Step [2]/[3]: 시스템 정보 출력 (id: system-info)
+▶ Step [3]/[3]: 종료 메시지 (id: goodbye)
+워크플로우 'Hello World 테스트' 실행 완료 (3/3 steps 성공)
+```
+
 ## 사용법
 
 ### 워크플로우 생성
 
 ```
-/workflow-builder create deploy
+/workflow-builder create blank
 ```
 
 템플릿을 선택하고 `.workflows/` 디렉토리에 워크플로우 파일을 생성합니다.
