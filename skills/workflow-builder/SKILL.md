@@ -37,11 +37,23 @@ YAML 워크플로우를 정의하고 Claude Code 안에서 실행하는 스킬.
 3. `~/.workflows/<name>.yaml`
 4. `~/.workflows/<name>.yml`
 
-찾지 못하면: "워크플로우 '<name>'을 찾을 수 없습니다. `.workflows/` 디렉토리를 확인하세요." 출력 후 종료.
+찾지 못하면 다음을 출력 후 종료:
+```
+워크플로우 '<name>'을 찾을 수 없습니다.
+검색한 경로:
+  1. .workflows/<name>.yaml
+  2. .workflows/<name>.yml
+  3. ~/.workflows/<name>.yaml
+  4. ~/.workflows/<name>.yml
+`/workflow-builder list`로 사용 가능한 워크플로우를 확인하세요.
+```
 
 ### 2단계: YAML 읽기 및 파싱
 
-Read 도구로 파일을 읽는다. YAML 내용에서 다음을 추출:
+Read 도구로 파일을 읽는다. YAML 문법이 올바르지 않으면(들여쓰기 오류, 잘못된 구조 등):
+"워크플로우 파일의 YAML 형식이 올바르지 않습니다. `/workflow-builder validate <name>`으로 상세 오류를 확인하세요." 출력 후 종료.
+
+YAML 내용에서 다음을 추출:
 
 - `workflow.name` — 워크플로우 이름 (필수)
 - `config.base` — 변수 맵 (선택)
@@ -75,12 +87,16 @@ Read 도구로 파일을 읽는다. YAML 내용에서 다음을 추출:
 - depends_on이 없는 step → 먼저 실행
 - depends_on이 있는 step → 선행 step 이후에 실행
 - 같은 레벨의 step은 YAML에 정의된 순서 유지
-- **순환 참조 감지**: A→B→A 같은 순환이 있으면 에러 출력 후 중단
+- **순환 참조 감지**: 각 step에서 depends_on 체인을 따라가며 방문한 step id 집합을 유지한다. 이미 방문한 id를 다시 만나면 순환이다. "순환 참조 감지: [step1] → [step2] → ... → [step1]. 워크플로우를 실행할 수 없습니다." 출력 후 중단
 
 ### 5단계: 변수 치환
 
 각 step의 `commands[]` 문자열에서 `${VAR_NAME}` 패턴을 찾아 `config.base`의 값으로 치환한다.
-- 정의되지 않은 변수 발견 시: "경고: 변수 '${VAR_NAME}'이 config.base에 정의되지 않았습니다" 출력. 원본 유지.
+
+**치환 규칙:**
+- 치환 대상: `config.base`에 키가 존재하는 `${KEY}` 패턴만
+- 치환 금지: `$(...)` (shell subcommand), `` `...` `` (backtick), `$VAR` (중괄호 없는 형태)
+- 정의되지 않은 `${VAR_NAME}` 발견 시: "경고: 변수 '${VAR_NAME}'이 config.base에 정의되지 않았습니다" 출력. 원본 유지.
 
 ### 6단계: 실행 (기계적 루프)
 
@@ -95,7 +111,7 @@ c) step.commands 배열의 각 command를 순서대로 Bash로 실행
 d) 각 command 실행 직후 exit code 확인:
    - 성공 (exit 0): 다음 command로 진행
    - 실패 (exit != 0):
-     - on_failure == "abort": "Step [id] 실패. 워크플로우를 중단합니다." 출력 후 전체 중단
+     - on_failure == "abort": "Step [id] 실패 (exit code: [code]). 실패한 명령: [command]. 워크플로우를 중단합니다." 출력 후 전체 중단
      - on_failure == "continue": "Step [id] 실패했지만 continue 설정으로 다음 step으로 진행합니다." 출력
 e) 모든 command 성공 시: "  Step [id] 완료"
 ```
