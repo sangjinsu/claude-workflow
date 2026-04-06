@@ -16,18 +16,30 @@ YAML 워크플로우를 정의하고 Claude Code 안에서 실행하는 스킬.
 ## 서브커맨드
 
 `$ARGUMENTS`를 파싱하여 서브커맨드를 결정한다:
-- `run <name>` → 워크플로우 실행
+- `run <name> [--set KEY=VALUE ...]` → 워크플로우 실행
 - `create [template]` → 새 워크플로우 생성
 - `list` → 워크플로우 목록
 - `show <name>` → 워크플로우 상세 보기
 - `validate <name>` → 워크플로우 검증
 - 인자 없음 → 사용 가능한 서브커맨드 안내
 
+### 인자 검증
+
+서브커맨드 파싱 후 반드시 검증한다:
+- 서브커맨드가 `run`, `create`, `list`, `show`, `validate` 중 하나가 아니면:
+  "알 수 없는 서브커맨드: [cmd]. 사용 가능: run, create, list, show, validate" 출력 후 종료.
+- `<name>` 인자에 `/`, `\`, `..` 이 포함되어 있으면:
+  "워크플로우 이름에 경로 구분자를 포함할 수 없습니다." 출력 후 종료.
+- `<name>` 인자는 영문, 숫자, 하이픈, 언더스코어, 한글만 허용한다.
+
 ---
 
-## run <name>
+## run <name> [--set KEY=VALUE ...]
 
 워크플로우를 실행한다. 이 섹션의 지시를 **기계적으로** 따를 것.
+
+`--set KEY=VALUE` 옵션이 있으면 `config.base`의 해당 키를 런타임에서 override한다.
+여러 개 지정 가능: `run deploy --set NAMESPACE=production --set CLUSTER=prod-east`
 
 ### 1단계: 파일 찾기
 
@@ -91,6 +103,8 @@ YAML 내용에서 다음을 추출:
 
 ### 5단계: 변수 치환
 
+먼저 `--set` 옵션으로 전달된 값을 `config.base`에 병합한다 (기존 값을 덮어쓴다).
+
 각 step의 `commands[]` 문자열에서 `${VAR_NAME}` 패턴을 찾아 `config.base`의 값으로 치환한다.
 
 **치환 규칙:**
@@ -98,9 +112,36 @@ YAML 내용에서 다음을 추출:
 - 치환 금지: `$(...)` (shell subcommand), `` `...` `` (backtick), `$VAR` (중괄호 없는 형태)
 - 정의되지 않은 `${VAR_NAME}` 발견 시: "경고: 변수 '${VAR_NAME}'이 config.base에 정의되지 않았습니다" 출력. 원본 유지.
 
+**보안 경고:**
+- `config.base` 값에 쉘 메타문자(`;`, `|`, `&&`, `||`, `` ` ``)가 포함되어 있으면:
+  "경고: 변수 '${KEY}'의 값에 쉘 메타문자가 포함되어 있습니다. 의도적인지 확인하세요." 출력.
+
+### 5.5단계: 실행 전 확인
+
+변수 치환이 완료된 후, 실행 전에 모든 step의 commands를 사용자에게 표시한다:
+
+```
+실행할 워크플로우: [workflow.name]
+사용된 파일: [resolved_file_path]
+
+Step 1: [step.name] (id: [step.id])
+  $ [command1 after substitution]
+  $ [command2 after substitution]
+
+Step 2: [step.name] (id: [step.id])
+  $ [command1 after substitution]
+  ...
+
+계속 실행하시겠습니까?
+```
+
+사용자가 확인하면 6단계로 진행한다. 거부하면 "워크플로우 실행이 취소되었습니다." 출력 후 종료.
+
 ### 6단계: 실행 (기계적 루프)
 
 정렬된 순서대로 각 step을 실행한다. **이 루프를 정확히 따를 것.**
+
+각 command 실행 시 Bash 도구의 timeout을 300000 (5분)으로 설정한다.
 
 각 step에 대해:
 
@@ -116,7 +157,12 @@ d) 각 command 실행 직후 exit code 확인:
 e) 모든 command 성공 시: "  Step [id] 완료"
 ```
 
-모든 step 완료 후: "워크플로우 '[workflow.name]' 실행 완료 ([N]/[total] steps 성공)"
+type이 command가 아닌 step은:
+```
+⏭ Step [N]/[total]: [step.name] (건너뜀 - 미지원 타입: [type])
+```
+
+모든 step 완료 후: "워크플로우 '[workflow.name]' 실행 완료 ([N]/[total] steps 성공, [M] 건너뜀)"
 
 ### 핵심 규칙
 
@@ -236,9 +282,22 @@ steps:                         # 필수, 1개 이상
 
 ---
 
+## 변수 Override
+
+`run` 서브커맨드에서 `--set KEY=VALUE`로 config.base 값을 실행 시 override할 수 있다.
+
+```
+/workflow-builder run deploy --set NAMESPACE=production --set CLUSTER=prod-east
+```
+
+YAML 파일을 수정하지 않고 환경별 실행이 가능하다.
+
+---
+
 ## Trust Model
 
 워크플로우의 commands는 사용자의 권한으로 실행됩니다.
-- MVP에서는 워크플로우 작성자 = 실행자 (self-trust)
+- 실행 전 변수 치환된 commands 목록이 표시되며, 사용자 확인 후 실행됩니다
 - Git으로 공유받은 워크플로우는 실행 전 commands를 반드시 확인하세요
 - 신뢰할 수 없는 출처의 YAML 파일은 실행하지 마세요
+- 워크플로우 이름에 경로 구분자(`/`, `\`, `..`)를 사용할 수 없습니다
