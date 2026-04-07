@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.1] - 2026-04-07
+
+### Added
+- `config.profiles` — 환경별 변수 세트 정의 (dev/staging/prod 등)
+- `--profile <name>` 옵션 — run 시 프로파일 선택
+- 우선순위: `--set` > `--profile` > `config.base`
+- 다중 환경 배포 예시 워크플로우 (`.workflows/multi-env-deploy.yaml`)
+- show 서브커맨드가 정의된 profiles 표시
+
 ## [0.2.0] - 2026-04-06
 
 ### Added

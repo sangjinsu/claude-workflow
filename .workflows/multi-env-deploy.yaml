@@ -1,0 +1,56 @@
+workflow:
+  name: "다중 환경 배포 점검"
+  description: "config.profiles를 사용해 dev/staging/prod 환경을 전환"
+  version: "1.0.0"
+  tags: [deploy, multi-env, profiles]
+
+config:
+  base:
+    SERVICE_NAME: "my-service"
+    NAMESPACE: "default"
+    REPLICAS: "1"
+    HEALTH_URL: "http://localhost:8080/health"
+
+  profiles:
+    dev:
+      NAMESPACE: "development"
+      HEALTH_URL: "http://dev.example.com/health"
+
+    staging:
+      NAMESPACE: "staging"
+      REPLICAS: "2"
+      HEALTH_URL: "http://staging.example.com/health"
+
+    prod:
+      NAMESPACE: "production"
+      REPLICAS: "5"
+      HEALTH_URL: "https://api.example.com/health"
+
+steps:
+  - id: announce
+    name: "환경 정보 출력"
+    type: command
+    commands:
+      - 'echo "==============================="'
+      - 'echo "Service: ${SERVICE_NAME}"'
+      - 'echo "Namespace: ${NAMESPACE}"'
+      - 'echo "Replicas: ${REPLICAS}"'
+      - 'echo "Health URL: ${HEALTH_URL}"'
+      - 'echo "==============================="'
+    on_failure: abort
+
+  - id: health-check
+    name: "헬스체크"
+    type: command
+    description: "선택된 환경의 헬스체크 엔드포인트 확인"
+    commands:
+      - 'curl -sf ${HEALTH_URL} || echo "헬스체크 실패 또는 URL 미접근"'
+    depends_on: [announce]
+    on_failure: continue
+
+  - id: summary
+    name: "AI 요약"
+    type: ai
+    prompt: "위 헬스체크 결과를 요약하세요. 정상이면 '${NAMESPACE} 환경 정상', 실패면 원인을 추측하세요. 1줄로."
+    depends_on: [health-check]
+    on_failure: continue
