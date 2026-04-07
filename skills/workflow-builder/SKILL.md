@@ -4,7 +4,7 @@ description: >
   워크플로우 YAML을 생성하고 실행하는 스킬.
   "워크플로우", "workflow", "배포 플로우", "작업 흐름" 언급 시 사용.
   /workflow-builder로 직접 호출 가능.
-argument-hint: <run|create|list|show|validate> [name]
+argument-hint: <run|create|record|list|show|validate> [name]
 allowed-tools: [Read, Write, Bash, Glob, Grep]
 ---
 
@@ -18,6 +18,7 @@ YAML 워크플로우를 정의하고 Claude Code 안에서 실행하는 스킬.
 `$ARGUMENTS`를 파싱하여 서브커맨드를 결정한다:
 - `run <name> [--set KEY=VALUE ...]` → 워크플로우 실행
 - `create [template]` → 새 워크플로우 생성
+- `record` → 대화형 워크플로우 레코더
 - `list` → 워크플로우 목록
 - `show <name>` → 워크플로우 상세 보기
 - `validate <name>` → 워크플로우 검증
@@ -26,8 +27,8 @@ YAML 워크플로우를 정의하고 Claude Code 안에서 실행하는 스킬.
 ### 인자 검증
 
 서브커맨드 파싱 후 반드시 검증한다:
-- 서브커맨드가 `run`, `create`, `list`, `show`, `validate` 중 하나가 아니면:
-  "알 수 없는 서브커맨드: [cmd]. 사용 가능: run, create, list, show, validate" 출력 후 종료.
+- 서브커맨드가 `run`, `create`, `record`, `list`, `show`, `validate` 중 하나가 아니면:
+  "알 수 없는 서브커맨드: [cmd]. 사용 가능: run, create, record, list, show, validate" 출력 후 종료.
 - `<name>` 인자에 `/`, `\`, `..` 이 포함되어 있으면:
   "워크플로우 이름에 경로 구분자를 포함할 수 없습니다." 출력 후 종료.
 - `<name>` 인자는 영문, 숫자, 하이픈, 언더스코어, 한글만 허용한다.
@@ -74,8 +75,9 @@ YAML 내용에서 다음을 추출:
 각 step에서 추출할 필드:
 - `id` (필수) — 고유 식별자
 - `name` (선택, 없으면 id 사용) — 표시 이름
-- `type` (필수) — MVP에서는 `command`만 지원
-- `commands[]` (필수) — 실행할 쉘 명령 목록
+- `type` (필수) — `command` 또는 `ai`
+- `commands[]` (type: command일 때 필수) — 실행할 쉘 명령 목록
+- `prompt` (type: ai일 때 필수) — Claude가 처리할 프롬프트
 - `depends_on[]` (선택) — 선행 step id 목록
 - `on_failure` (선택, 기본값 `abort`) — `abort` 또는 `continue`
 - `description` (선택) — 단계 설명
@@ -86,8 +88,10 @@ YAML 내용에서 다음을 추출:
 - `workflow.name` 존재 여부
 - `steps`가 비어있지 않은지
 - 각 step에 `id`, `type`, `commands`가 있는지
-- `type`이 `command`인지 (아니면 "MVP에서는 command 타입만 지원합니다" 경고 후 건너뜀)
+- `type`이 `command` 또는 `ai`인지 (아니면 "지원하지 않는 타입입니다: [type]" 경고 후 건너뜀)
   - 건너뛴 step은 의존성 해결 시 "완료"로 간주한다. 해당 step에 의존하는 다른 step은 정상적으로 실행된다.
+- type: command인 step에 `commands`가 있는지
+- type: ai인 step에 `prompt`가 있는지
 - step id 중복 없는지
 - `depends_on`의 모든 참조가 존재하는 step id인지
 
@@ -145,6 +149,7 @@ Step 2: [step.name] (id: [step.id])
 
 각 step에 대해:
 
+**type: command인 경우:**
 ```
 a) 출력: "▶ Step [N]/[total]: [step.name] (id: [step.id])"
 b) description이 있으면 출력: "  [description]"
@@ -156,6 +161,18 @@ d) 각 command 실행 직후 exit code 확인:
      - on_failure == "continue": "Step [id] 실패했지만 continue 설정으로 다음 step으로 진행합니다." 출력
 e) 모든 command 성공 시: "  Step [id] 완료"
 ```
+
+**type: ai인 경우:**
+```
+a) 출력: "🤖 Step [N]/[total]: [step.name] (id: [step.id], type: ai)"
+b) description이 있으면 출력: "  [description]"
+c) step.prompt의 ${VAR} 변수를 치환한다 (5단계와 동일 규칙)
+d) 치환된 prompt를 처리하고 결과를 출력한다
+e) "  Step [id] 완료 (AI)"
+```
+
+AI step의 prompt는 이전 step의 실행 컨텍스트(출력 결과)를 참조할 수 있다.
+예: "위 로그를 분석하고 에러가 있으면 요약하세요"
 
 type이 command가 아닌 step은:
 ```
@@ -200,6 +217,47 @@ cp "<found_template_path>" "<destination_dir>/<workflow_name>.yaml"
 ```
 
 6. 안내: "워크플로우가 생성되었습니다. 파일을 열어 config.base 변수와 commands를 수정하세요."
+
+---
+
+## record
+
+대화형으로 워크플로우를 생성한다. YAML을 직접 작성하는 대신, 자연어로 설명하면 워크플로우를 생성한다.
+
+### 절차:
+
+1. 사용자에게 워크플로우의 목적을 물어본다:
+   "어떤 작업을 워크플로우로 만들고 싶으신가요? (예: 배포 전 점검, DB 백업, 테스트 실행)"
+
+2. 사용자의 설명을 바탕으로 다음을 결정한다:
+   - 워크플로우 이름
+   - 필요한 변수 (config.base)
+   - step 목록 (각 step의 id, name, type, commands 또는 prompt)
+   - step 간 의존 관계 (depends_on)
+   - 실패 처리 전략 (on_failure)
+
+3. 생성할 워크플로우를 미리보기로 보여준다:
+   ```
+   생성할 워크플로우:
+   ---
+   [YAML 내용]
+   ---
+   ```
+
+4. 사용자에게 확인을 받는다:
+   - 수정이 필요하면 사용자 의견을 반영하여 다시 생성한다
+   - 확인되면 저장 위치를 물어본다 (`.workflows/` 또는 `~/.workflows/`)
+
+5. Write 도구로 파일을 생성한다
+
+6. 안내: "워크플로우 '[name]'이 [path]에 생성되었습니다. `/workflow-builder run [name]`으로 실행하세요."
+
+### type: ai step 활용 안내
+
+사용자의 설명에 분석, 판단, 요약 등의 키워드가 포함되면 `type: ai` step을 제안한다.
+- "로그를 분석해서" → `type: ai` + `prompt: "위 로그를 분석하고..."`
+- "결과를 판단해서" → `type: ai` + `prompt: "위 결과를 바탕으로 판단..."`
+- "요약해줘" → `type: ai` + `prompt: "위 출력을 요약..."`
 
 ---
 
@@ -272,10 +330,11 @@ config:
 steps:                         # 필수, 1개 이상
   - id: step-id               # 필수, 고유
     name: "표시 이름"          # 선택 (없으면 id 사용)
-    type: command              # 필수, MVP에서는 command만
+    type: command              # 필수 (command | ai)
     description: "설명"        # 선택
-    commands:                  # 필수, 1개 이상
+    commands:                  # type: command일 때 필수
       - "shell command ${VAR_NAME}"
+    prompt: "AI에게 요청할 내용"  # type: ai일 때 필수
     depends_on: [other-id]     # 선택
     on_failure: abort          # 선택 (abort | continue, 기본: abort)
 ```

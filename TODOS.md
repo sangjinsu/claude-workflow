@@ -2,13 +2,11 @@
 
 ## Workflow Builder — Phase 2
 
-- **Priority:** P1
-  워크플로우 레코더 (세션 자동 캡처) — 자연어 작업을 YAML 워크플로우로 자동 변환
-  *Deferred from /autoplan CEO review: 킬러 기능, 10x 사용자 가치*
+- ~~**Priority:** P1
+  워크플로우 레코더 (세션 자동 캡처)~~ **Completed v0.2.0**
 
-- **Priority:** P1
-  `type: ai` step — Claude AI 능력을 워크플로우 step에서 활용 (예: 로그 분석 후 조건부 실행)
-  *Deferred from /autoplan CEO review: 경쟁 방어 가능한 유일한 차별점*
+- ~~**Priority:** P1
+  `type: ai` step~~ **Completed v0.2.0**
 
 - **Priority:** P2
   변수 override `--set KEY=VALUE` — 실행 시 config.base 값을 runtime에서 override

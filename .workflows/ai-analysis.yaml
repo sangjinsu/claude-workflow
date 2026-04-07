@@ -1,0 +1,37 @@
+workflow:
+  name: "AI 로그 분석"
+  description: "시스템 로그를 수집하고 AI로 분석하는 워크플로우"
+  version: "1.0.0"
+  tags: [ai, analysis, logs]
+
+config:
+  base:
+    LOG_LINES: "20"
+    LOG_SOURCE: "system"
+
+steps:
+  - id: collect-logs
+    name: "로그 수집"
+    type: command
+    description: "최근 시스템 로그를 수집합니다"
+    commands:
+      - 'echo "=== 최근 ${LOG_SOURCE} 로그 (${LOG_LINES}줄) ==="'
+      - 'log show --last 1m --style compact 2>/dev/null | tail -${LOG_LINES} || echo "로그를 가져올 수 없습니다 (macOS log show 미지원 환경)"'
+    on_failure: continue
+
+  - id: analyze
+    name: "AI 분석"
+    type: ai
+    description: "수집된 로그를 AI가 분석합니다"
+    prompt: "위에서 수집된 로그를 분석하세요. 에러나 경고가 있으면 요약하고, 정상이면 '시스템 정상'이라고 출력하세요. 3줄 이내로 요약하세요."
+    depends_on: [collect-logs]
+    on_failure: continue
+
+  - id: report
+    name: "결과 보고"
+    type: command
+    commands:
+      - 'echo "=== 분석 완료 ==="'
+      - 'echo "분석 시각: $(date)"'
+    depends_on: [analyze]
+    on_failure: abort

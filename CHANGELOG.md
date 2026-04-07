@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0] - 2026-04-06
+
+### Added
+- `type: ai` step — Claude AI가 워크플로우 step에서 분석, 판단, 요약을 수행
+- `record` subcommand — 자연어 설명으로 워크플로우를 대화형 생성
+- AI 로그 분석 예시 워크플로우 (`.workflows/ai-analysis.yaml`)
+
 ## [0.1.1] - 2026-04-05
 
 ### Fixed
