@@ -16,7 +16,7 @@ YAML 워크플로우를 정의하고 Claude Code 안에서 실행하는 스킬.
 ## 서브커맨드
 
 `$ARGUMENTS`를 파싱하여 서브커맨드를 결정한다:
-- `run <name> [--set KEY=VALUE ...]` → 워크플로우 실행
+- `run <name> [--profile <name>] [--set KEY=VALUE ...]` → 워크플로우 실행
 - `create [template]` → 새 워크플로우 생성
 - `record` → 대화형 워크플로우 레코더
 - `list` → 워크플로우 목록
@@ -35,12 +35,20 @@ YAML 워크플로우를 정의하고 Claude Code 안에서 실행하는 스킬.
 
 ---
 
-## run <name> [--set KEY=VALUE ...]
+## run <name> [--profile <name>] [--set KEY=VALUE ...]
 
 워크플로우를 실행한다. 이 섹션의 지시를 **기계적으로** 따를 것.
 
-`--set KEY=VALUE` 옵션이 있으면 `config.base`의 해당 키를 런타임에서 override한다.
-여러 개 지정 가능: `run deploy --set NAMESPACE=production --set CLUSTER=prod-east`
+**옵션:**
+- `--profile <name>`: `config.profiles.<name>`의 변수를 `config.base`에 병합 (override)
+- `--set KEY=VALUE`: 개별 변수를 런타임에서 override (여러 개 가능)
+
+**우선순위 (높은 것이 우선):**
+1. `--set KEY=VALUE` (CLI override)
+2. `--profile <name>` (선택된 프로파일)
+3. `config.base` (기본값)
+
+예: `run deploy --profile prod --set REPLICAS=10`
 
 ### 1단계: 파일 찾기
 
@@ -69,7 +77,8 @@ Read 도구로 파일을 읽는다. YAML 문법이 올바르지 않으면(들여
 YAML 내용에서 다음을 추출:
 
 - `workflow.name` — 워크플로우 이름 (필수)
-- `config.base` — 변수 맵 (선택)
+- `config.base` — 기본 변수 맵 (선택)
+- `config.profiles` — 환경별 변수 맵 (선택, dev/staging/prod 등)
 - `steps[]` — 실행할 단계 목록 (필수, 1개 이상)
 
 각 step에서 추출할 필드:
@@ -107,7 +116,15 @@ YAML 내용에서 다음을 추출:
 
 ### 5단계: 변수 치환
 
-먼저 `--set` 옵션으로 전달된 값을 `config.base`에 병합한다 (기존 값을 덮어쓴다).
+**변수 병합 순서 (낮은 우선순위 → 높은 우선순위):**
+
+1. `config.base` 값으로 시작
+2. `--profile <name>` 옵션이 지정되었으면:
+   - `config.profiles.<name>`이 존재하는지 확인. 없으면 "프로파일 '<name>'이 정의되지 않았습니다. 사용 가능: [list]" 출력 후 종료.
+   - `config.profiles.<name>`의 값을 base에 병합 (덮어쓰기)
+3. `--set KEY=VALUE` 옵션 값을 병합 (덮어쓰기)
+
+이 결과로 최종 변수 맵을 만든 후 치환을 시작한다.
 
 각 step의 `commands[]` 문자열에서 `${VAR_NAME}` 패턴을 찾아 `config.base`의 값으로 치환한다.
 
@@ -291,6 +308,7 @@ cp "<found_template_path>" "<destination_dir>/<workflow_name>.yaml"
 3. 다음을 정리하여 출력한다:
    - 워크플로우 이름, 버전, 설명
    - config.base 변수 목록
+   - config.profiles 목록 (정의된 프로파일 이름과 각 프로파일이 override하는 변수)
    - step 목록 (id, name, type, depends_on, on_failure)
    - 실행 순서 (depends_on 기반)
 
@@ -327,6 +345,13 @@ config:
   base:                        # 선택
     VAR_NAME: "value"          # ${VAR_NAME}으로 commands에서 참조
 
+  profiles:                    # 선택, 환경별 변수 세트
+    dev:                       # --profile dev로 활성화
+      VAR_NAME: "dev-value"    # base 값을 override
+    prod:                      # --profile prod로 활성화
+      VAR_NAME: "prod-value"
+      EXTRA_VAR: "only-in-prod"
+
 steps:                         # 필수, 1개 이상
   - id: step-id               # 필수, 고유
     name: "표시 이름"          # 선택 (없으면 id 사용)
@@ -341,15 +366,46 @@ steps:                         # 필수, 1개 이상
 
 ---
 
-## 변수 Override
+## 변수 Override 와 Profiles
 
-`run` 서브커맨드에서 `--set KEY=VALUE`로 config.base 값을 실행 시 override할 수 있다.
+### Profiles (환경별 변수 세트)
 
+YAML에서 `config.profiles`로 환경별 변수를 미리 정의한다:
+
+```yaml
+config:
+  base:
+    NAMESPACE: "default"
+    REPLICAS: "1"
+  profiles:
+    dev:
+      NAMESPACE: "dev"
+    prod:
+      NAMESPACE: "production"
+      REPLICAS: "5"
 ```
-/workflow-builder run deploy --set NAMESPACE=production --set CLUSTER=prod-east
+
+`--profile` 옵션으로 활성화:
+```
+/workflow-builder run deploy --profile prod
 ```
 
-YAML 파일을 수정하지 않고 환경별 실행이 가능하다.
+### CLI Override
+
+`--set KEY=VALUE`로 실행 시 변수를 직접 override:
+```
+/workflow-builder run deploy --set NAMESPACE=production
+```
+
+### 우선순위
+
+`--set` > `--profile` > `config.base`
+
+조합 사용:
+```
+/workflow-builder run deploy --profile prod --set REPLICAS=10
+```
+이 경우 `prod` 프로파일의 NAMESPACE는 적용되고, REPLICAS만 10으로 override.
 
 ---
 

@@ -12,9 +12,8 @@
   변수 override `--set KEY=VALUE` — 실행 시 config.base 값을 runtime에서 override
   *Deferred from /autoplan DX review*
 
-- **Priority:** P2
-  config profiles (dev/staging/prod) — 환경별 변수 세트
-  *From CLAUDE.md Phase 2+ 로드맵*
+- ~~**Priority:** P2
+  config profiles (dev/staging/prod)~~ **Completed v0.2.1**
 
 - **Priority:** P2
   `run` 실행 전 commands 표시+확인 절차 — 공유 워크플로우 보안
