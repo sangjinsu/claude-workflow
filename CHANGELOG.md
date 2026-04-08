@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0] - 2026-04-08
+
+### Added
+- 병렬 실행: 같은 의존성 레벨의 step들이 동시에 실행됨
+- 4단계 알고리즘이 병렬 레벨을 계산 (topological levels)
+- `validate --repeat N` 옵션으로 결정성 검증
+- 결정성 테스트 워크플로우 (`.workflows/determinism-test.yaml`)
+- 병렬 실행 데모 워크플로우 (`.workflows/parallel-demo.yaml`)
+
+### Changed
+- 6단계 실행 루프가 병렬 레벨 단위로 실행
+- 같은 레벨의 command step은 같은 메시지에서 동시 호출
+
 ## [0.2.1] - 2026-04-07
 
 ### Added

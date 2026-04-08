@@ -1,0 +1,42 @@
+workflow:
+  name: "결정성 검증 워크플로우"
+  description: "동일 실행 시 동일 결과를 보장하는지 확인하는 테스트. validate --repeat 3으로 검증."
+  version: "1.0.0"
+  tags: [test, determinism, qa]
+
+config:
+  base:
+    FIXED_GREETING: "Hello"
+    FIXED_NAME: "Workflow"
+    FIXED_NUMBER: "42"
+
+steps:
+  - id: step-a
+    name: "독립 step A"
+    type: command
+    commands:
+      - 'echo "${FIXED_GREETING} from A"'
+    on_failure: abort
+
+  - id: step-b
+    name: "독립 step B (A와 병렬 가능)"
+    type: command
+    commands:
+      - 'echo "${FIXED_GREETING} from B"'
+    on_failure: abort
+
+  - id: step-c
+    name: "A에 의존"
+    type: command
+    commands:
+      - 'echo "${FIXED_NAME}: ${FIXED_NUMBER}"'
+    depends_on: [step-a]
+    on_failure: abort
+
+  - id: step-d
+    name: "A와 B에 의존 (병렬 종료 후)"
+    type: command
+    commands:
+      - 'echo "All deterministic: ${FIXED_GREETING} ${FIXED_NAME} ${FIXED_NUMBER}"'
+    depends_on: [step-a, step-b]
+    on_failure: abort
