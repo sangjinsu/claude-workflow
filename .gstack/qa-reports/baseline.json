@@ -1,0 +1,29 @@
+{
+  "date": "2026-04-08",
+  "project": "claude-workflow",
+  "version": "0.3.0",
+  "branch": "main",
+  "mode": "adapted-prompt-only",
+  "healthScore": 98,
+  "workflows": [
+    { "name": "hello", "result": "PASS", "steps": "3/3" },
+    { "name": "prompt-test", "result": "PASS", "steps": "3/5 (2 skipped)" },
+    { "name": "parallel-demo", "result": "PASS", "steps": "5/5" },
+    { "name": "multi-env-deploy --profile dev", "result": "PASS", "steps": "3/3" },
+    { "name": "ai-analysis", "result": "PASS", "steps": "3/3" },
+    { "name": "determinism-test", "result": "PASS", "steps": "4/4" }
+  ],
+  "issues": [
+    { "id": "ISSUE-001", "title": "Skill tool cache staleness", "severity": "medium", "category": "operational", "status": "deferred-external" },
+    { "id": "ISSUE-002", "title": "deploy.yaml template requires kubectl", "severity": "low", "category": "content", "status": "deferred-by-design" }
+  ],
+  "categoryScores": {
+    "workflow_execution": 100,
+    "variable_substitution": 100,
+    "dependency_resolution": 100,
+    "error_handling": 100,
+    "determinism": 100,
+    "security": 85,
+    "documentation": 100
+  }
+}

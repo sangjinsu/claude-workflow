@@ -38,4 +38,14 @@
 - **Priority:** P4
   MCP 서버 연동
 
+## Known Issues (from /qa 2026-04-08)
+
+- **Priority:** P3
+  ISSUE-001: Skill tool cache staleness — mid-session SKILL.md edits not reflected in `/workflow-builder` invocations. Workaround: restart session or read file directly.
+  *Category: operational/external. Cannot be fixed in this project.*
+
+- **Priority:** P4
+  ISSUE-002: deploy.yaml template requires kubectl — first-experience friction for non-k8s users.
+  *Category: content/design. Working as intended; blank.yaml is the zero-dep starting point.*
+
 ## Completed
