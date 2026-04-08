@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1] - 2026-04-08
+
+### Added
+- `type: approval` step — 사용자 확인 게이트로 중요 작업 전 승인 요청
+- AskUserQuestion UI를 통한 명시적 옵션 제공 (read -p 보다 안전)
+- `default: approve | deny` 설정 (기본: deny)
+- `${VAR}` 변수 치환을 message에서 지원
+- 병렬 실행 시 approval step은 단독 처리 (다중 승인 UX 방지)
+- approval-demo.yaml: profile + approval + AI 요약 조합 예시
+
+### Notes
+- /autoplan 리뷰에 따라 Phase 3 scope를 `type: approval` 단일 기능으로 축소
+- type: api, type: skill, type: mcp는 Phase 4+ 또는 별도 플러그인으로 연기
+
 ## [0.3.0] - 2026-04-08
 
 ### Added
