@@ -1,0 +1,50 @@
+workflow:
+  name: "병렬 실행 데모"
+  description: "depends_on이 없는 step들을 동시 실행. 4개 점검 → 1개 요약."
+  version: "1.0.0"
+  tags: [parallel, demo]
+
+config:
+  base:
+    SEPARATOR: "------"
+
+steps:
+  - id: check-disk
+    name: "디스크 사용량"
+    type: command
+    commands:
+      - 'echo "${SEPARATOR}"'
+      - 'df -h / | tail -1'
+    on_failure: continue
+
+  - id: check-memory
+    name: "메모리 사용량"
+    type: command
+    commands:
+      - 'echo "${SEPARATOR}"'
+      - 'vm_stat | head -5 2>/dev/null || free -h 2>/dev/null || echo "메모리 정보 없음"'
+    on_failure: continue
+
+  - id: check-uptime
+    name: "시스템 가동 시간"
+    type: command
+    commands:
+      - 'echo "${SEPARATOR}"'
+      - 'uptime'
+    on_failure: continue
+
+  - id: check-processes
+    name: "프로세스 수"
+    type: command
+    commands:
+      - 'echo "${SEPARATOR}"'
+      - 'ps aux | wc -l | xargs -I {} echo "총 프로세스: {}개"'
+    on_failure: continue
+
+  - id: summary
+    name: "AI 요약"
+    type: ai
+    description: "위 4개 점검 결과를 요약"
+    prompt: "위 4개 점검 결과(디스크, 메모리, 가동 시간, 프로세스)를 한 문장으로 요약하세요. 시스템 상태가 정상인지 의심스러운지 판단하세요."
+    depends_on: [check-disk, check-memory, check-uptime, check-processes]
+    on_failure: continue
