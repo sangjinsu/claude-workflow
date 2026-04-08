@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.2] - 2026-04-08
+
+### Added
+- approval-parallel-test.yaml: 병렬 레벨 예외 검증용 워크플로우
+- approval-continue-test.yaml: on_failure continue 모드 검증용
+- SKILL.md: type: approval timeout 동작 명세 (무기한 blocking, MVP는 대화형만)
+
+### QA
+- type: approval 4개 시나리오 전수 검증 완료 (approve, deny, parallel exception, continue)
+- Health: 100/100 (8개 검증 항목)
+
 ## [0.3.1] - 2026-04-08
 
 ### Added

@@ -1,0 +1,40 @@
+workflow:
+  name: "Approval 병렬 예외 테스트"
+  description: "같은 의존성 레벨에 command + approval이 있을 때 approval이 단독 처리되는지 검증"
+  version: "1.0.0"
+  tags: [test, approval, parallel]
+
+config:
+  base:
+    LABEL: "parallel-test"
+
+steps:
+  - id: parallel-cmd-a
+    name: "병렬 command A (레벨 0)"
+    type: command
+    commands:
+      - 'echo "[${LABEL}] Step A 실행"'
+    on_failure: abort
+
+  - id: parallel-cmd-b
+    name: "병렬 command B (레벨 0)"
+    type: command
+    commands:
+      - 'echo "[${LABEL}] Step B 실행"'
+    on_failure: abort
+
+  - id: approval-at-level-0
+    name: "approval 단독 처리 (레벨 0)"
+    type: approval
+    description: "cmd-a, cmd-b와 같은 레벨이지만 approval은 단독 실행되어야 함"
+    message: "approval이 병렬 실행 제약을 준수하여 단독 처리되는지 확인합니다. 승인하시겠습니까?"
+    default: approve
+    on_failure: abort
+
+  - id: after-all
+    name: "모든 레벨 0 완료 후"
+    type: command
+    commands:
+      - 'echo "[${LABEL}] 모든 레벨 0 step 완료"'
+    depends_on: [parallel-cmd-a, parallel-cmd-b, approval-at-level-0]
+    on_failure: abort
