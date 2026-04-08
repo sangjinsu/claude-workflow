@@ -247,6 +247,8 @@ e) 사용자 응답에 따라:
 
 **병렬 실행 제약**: type: approval step은 단독 처리한다. 같은 레벨에 다른 step이 있어도 approval은 별도로 실행. 동시에 여러 approval이 뜨면 UX가 깨진다.
 
+**Timeout**: type: approval은 사용자 응답까지 **무기한 blocking**이다. prompt-only 아키텍처에서 timeout 메커니즘은 지원하지 않는다. 자동화 시나리오(hooks, scheduler)에서 사용하려면 `--auto-approve` 같은 외부 override가 필요 (Phase 4+). MVP에서는 대화형 사용만 지원.
+
 type이 command/ai/approval가 아닌 step은:
 ```
 ⏭ Step [N]/[total]: [step.name] (건너뜀 - 미지원 타입: [type])

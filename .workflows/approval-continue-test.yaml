@@ -1,0 +1,35 @@
+workflow:
+  name: "Approval on_failure continue 테스트"
+  description: "approval 거부 시 on_failure: continue가 다음 step으로 진행시키는지 검증"
+  version: "1.0.0"
+  tags: [test, approval, on_failure]
+
+config:
+  base:
+    LABEL: "continue-test"
+
+steps:
+  - id: before-approval
+    name: "approval 이전"
+    type: command
+    commands:
+      - 'echo "[${LABEL}] approval 전 step 실행"'
+    on_failure: abort
+
+  - id: optional-confirm
+    name: "선택적 승인 (거부해도 계속)"
+    type: approval
+    description: "거부해도 on_failure: continue로 다음 step 진행"
+    message: "이 작업을 수행하시겠습니까? 거부해도 워크플로우는 계속 진행됩니다."
+    default: deny
+    depends_on: [before-approval]
+    on_failure: continue
+
+  - id: after-approval
+    name: "approval 이후 (거부해도 실행)"
+    type: command
+    description: "on_failure: continue 덕분에 approval 결과와 무관하게 실행"
+    commands:
+      - 'echo "[${LABEL}] approval 거부 여부와 무관하게 실행됨"'
+    depends_on: [optional-confirm]
+    on_failure: abort

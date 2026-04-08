@@ -41,12 +41,47 @@ Namespace: production
 - summary step (5/5) NOT executed ✓
 - Workflow stopped cleanly
 
-### Not Tested (Future Work)
+### Follow-up QA (Completed 2026-04-08, same day)
 
-- **Approve path**: User selected B (deny), so the approve branch + execute + AI summary chain is not verified in this run. A follow-up QA run selecting A would verify the full chain.
-- **Timeout behavior**: What happens if the approval prompt is left unanswered? Currently undefined in SKILL.md.
-- **Parallel exception**: Need a workflow with an approval step at the same dependency level as a command step to verify approval runs alone.
-- **on_failure: continue**: Need a workflow where approval deny → continue to next step.
+All 4 untested scenarios verified in a follow-up run:
+
+**1. Approve path: PASS**
+- Re-ran approval-demo, selected approve
+- execute step ran (echo "재시작 완료")
+- summary AI step ran (suggested next health check)
+- 5/5 steps succeeded
+
+**2. Timeout behavior: DOCUMENTED**
+- SKILL.md updated: "type: approval은 사용자 응답까지 무기한 blocking. prompt-only 아키텍처에서 timeout 메커니즘은 지원하지 않는다. 자동화 시나리오는 Phase 4+."
+- Decision: MVP supports interactive use only.
+
+**3. Parallel exception: PASS**
+- New workflow: `.workflows/approval-parallel-test.yaml`
+- Level 0 contains [parallel-cmd-a, parallel-cmd-b, approval-at-level-0]
+- Verification: command 2 executed in same message (parallel Bash calls), approval executed in separate message (alone)
+- After-all step ran after all 3 completed
+- 4/4 steps succeeded
+
+**4. on_failure: continue: PASS**
+- New workflow: `.workflows/approval-continue-test.yaml`
+- approval step has `on_failure: continue`
+- User selected deny
+- after-approval step ran despite deny
+- 3/3 steps progressed
+
+### Final Health Score
+
+| Category | Score |
+|----------|-------|
+| Approval step execution (deny) | 100 |
+| Approval step execution (approve) | 100 |
+| Variable substitution in message | 100 |
+| AskUserQuestion integration | 100 |
+| on_failure: abort (deny → stop) | 100 |
+| on_failure: continue (deny → next) | 100 |
+| Parallel exception (approval alone) | 100 |
+| Timeout behavior documented | 100 |
+| **Overall** | **100/100** |
 
 ## Issues Found
 
