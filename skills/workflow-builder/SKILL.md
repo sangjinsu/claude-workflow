@@ -84,9 +84,11 @@ YAML 내용에서 다음을 추출:
 각 step에서 추출할 필드:
 - `id` (필수) — 고유 식별자
 - `name` (선택, 없으면 id 사용) — 표시 이름
-- `type` (필수) — `command` 또는 `ai`
+- `type` (필수) — `command`, `ai`, 또는 `approval`
 - `commands[]` (type: command일 때 필수) — 실행할 쉘 명령 목록
 - `prompt` (type: ai일 때 필수) — Claude가 처리할 프롬프트
+- `message` (type: approval일 때 필수) — 사용자에게 표시할 확인 메시지
+- `default` (type: approval일 때 선택, 기본값 `deny`) — `approve` 또는 `deny`
 - `depends_on[]` (선택) — 선행 step id 목록
 - `on_failure` (선택, 기본값 `abort`) — `abort` 또는 `continue`
 - `description` (선택) — 단계 설명
@@ -97,10 +99,11 @@ YAML 내용에서 다음을 추출:
 - `workflow.name` 존재 여부
 - `steps`가 비어있지 않은지
 - 각 step에 `id`, `type`, `commands`가 있는지
-- `type`이 `command` 또는 `ai`인지 (아니면 "지원하지 않는 타입입니다: [type]" 경고 후 건너뜀)
+- `type`이 `command`, `ai`, 또는 `approval`인지 (아니면 "지원하지 않는 타입입니다: [type]" 경고 후 건너뜀)
   - 건너뛴 step은 의존성 해결 시 "완료"로 간주한다. 해당 step에 의존하는 다른 step은 정상적으로 실행된다.
 - type: command인 step에 `commands`가 있는지
 - type: ai인 step에 `prompt`가 있는지
+- type: approval인 step에 `message`가 있는지
 - step id 중복 없는지
 - `depends_on`의 모든 참조가 존재하는 step id인지
 
@@ -186,6 +189,7 @@ Step 2: [step.name] (id: [step.id])
 2. 같은 레벨에 step이 2개 이상이면: **병렬 실행**
    - command step의 commands를 같은 메시지에서 여러 Bash tool call로 동시 호출
    - ai step은 단독 처리 (병렬 호출 불가)
+   - approval step은 단독 처리 (병렬 호출 불가, 동시 승인 요청은 UX 붕괴)
    - 모든 step이 완료된 후 다음 레벨로 진행
 
 레벨이 끝나기 전에 다음 레벨을 시작하지 않는다.
@@ -224,7 +228,26 @@ e) "  Step [id] 완료 (AI)"
 AI step의 prompt는 이전 step의 실행 컨텍스트(출력 결과)를 참조할 수 있다.
 예: "위 로그를 분석하고 에러가 있으면 요약하세요"
 
-type이 command가 아닌 step은:
+**type: approval인 경우:**
+```
+a) 출력: "🛑 Step [N]/[total]: [step.name] (id: [step.id], type: approval)"
+b) description이 있으면 출력: "  [description]"
+c) step.message의 ${VAR} 변수를 치환한다 (5단계와 동일 규칙)
+d) AskUserQuestion 도구로 사용자에게 승인 요청:
+   - question: 치환된 message
+   - options:
+     - "승인 (계속 진행)" (default가 approve이면 첫 번째)
+     - "거부 (워크플로우 중단)" (default가 deny이면 첫 번째, 기본값)
+e) 사용자 응답에 따라:
+   - 승인: "  Step [id] 승인됨" 출력 후 다음 step 진행
+   - 거부:
+     - on_failure == "abort": "Step [id] 거부됨. 워크플로우를 중단합니다." 출력 후 전체 중단
+     - on_failure == "continue": "Step [id] 거부됨. continue 설정으로 다음 step으로 진행합니다." 출력
+```
+
+**병렬 실행 제약**: type: approval step은 단독 처리한다. 같은 레벨에 다른 step이 있어도 approval은 별도로 실행. 동시에 여러 approval이 뜨면 UX가 깨진다.
+
+type이 command/ai/approval가 아닌 step은:
 ```
 ⏭ Step [N]/[total]: [step.name] (건너뜀 - 미지원 타입: [type])
 ```
@@ -403,11 +426,13 @@ config:
 steps:                         # 필수, 1개 이상
   - id: step-id               # 필수, 고유
     name: "표시 이름"          # 선택 (없으면 id 사용)
-    type: command              # 필수 (command | ai)
+    type: command              # 필수 (command | ai | approval)
     description: "설명"        # 선택
     commands:                  # type: command일 때 필수
       - "shell command ${VAR_NAME}"
     prompt: "AI에게 요청할 내용"  # type: ai일 때 필수
+    message: "사용자 확인 메시지"  # type: approval일 때 필수
+    default: deny              # type: approval일 때 선택 (approve | deny, 기본: deny)
     depends_on: [other-id]     # 선택
     on_failure: abort          # 선택 (abort | continue, 기본: abort)
 ```

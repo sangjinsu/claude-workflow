@@ -26,8 +26,20 @@
   `.claude/commands/` 대비 차별점 문서화
   *Deferred from /autoplan CEO review*
 
-- **Priority:** P3
-  type: api, skill, approval step 지원
+- ~~**Priority:** P3
+  type: approval step~~ **Completed v0.3.1** (autoplan review에 따라 단독 구현)
+
+- **Priority:** Phase 4+
+  type: api — RFC 필요 (step output → next step pipeline 선행 필요)
+  *Deferred: /autoplan review found hidden cost*
+
+- **Priority:** Phase 4+
+  type: skill — RFC 필요 (실행 메커니즘, 에러 신호 프로토콜, 결정성 검증 호환성 미정)
+  *Deferred: /autoplan review found undefined execution model*
+
+- **Priority:** 별도 플러그인
+  type: mcp — "외부 의존성 없음" 원칙 위반
+  *Deferred: claude-workflow-experimental 등 별도 플러그인이 적합*
 
 - ~~**Priority:** P3
   병렬 실행 (depends_on이 없는 step 동시 실행)~~ **Completed v0.3.0**

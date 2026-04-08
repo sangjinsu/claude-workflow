@@ -1,0 +1,68 @@
+workflow:
+  name: "Approval 게이트 데모"
+  description: "type: approval로 중요 작업 전 사용자 확인을 받는 워크플로우"
+  version: "1.0.0"
+  tags: [approval, demo, safety]
+
+config:
+  base:
+    SERVICE_NAME: "my-service"
+    NAMESPACE: "production"
+    ACTION: "재시작"
+
+  profiles:
+    dev:
+      NAMESPACE: "development"
+    prod:
+      NAMESPACE: "production"
+
+steps:
+  - id: announce
+    name: "작업 안내"
+    type: command
+    commands:
+      - 'echo "==============================="'
+      - 'echo "${ACTION} 작업 시작"'
+      - 'echo "Service: ${SERVICE_NAME}"'
+      - 'echo "Namespace: ${NAMESPACE}"'
+      - 'echo "==============================="'
+    on_failure: abort
+
+  - id: pre-check
+    name: "사전 점검"
+    type: command
+    description: "현재 상태 확인"
+    commands:
+      - 'echo "현재 시각: $(date)"'
+      - 'echo "사용자: $(whoami)"'
+    depends_on: [announce]
+    on_failure: abort
+
+  - id: confirm
+    name: "최종 승인"
+    type: approval
+    description: "되돌릴 수 없는 작업 전 확인"
+    message: "${SERVICE_NAME} (${NAMESPACE})에 ${ACTION}를 실행하시겠습니까?"
+    default: deny
+    depends_on: [pre-check]
+    on_failure: abort
+
+  - id: execute
+    name: "작업 실행"
+    type: command
+    description: "승인 후 실행"
+    commands:
+      - 'echo "🚀 ${SERVICE_NAME} ${ACTION} 실행 중..."'
+      - 'echo "(데모이므로 실제 작업은 수행하지 않습니다)"'
+      - 'sleep 1'
+      - 'echo "✓ ${ACTION} 완료"'
+    depends_on: [confirm]
+    on_failure: abort
+
+  - id: summary
+    name: "결과 요약"
+    type: ai
+    description: "AI가 실행 결과 요약"
+    prompt: "위 작업이 완료되었습니다. 1줄로 결과를 요약하고 ${NAMESPACE} 환경에서 다음 점검 사항을 1개 제안하세요."
+    depends_on: [execute]
+    on_failure: continue
