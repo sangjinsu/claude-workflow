@@ -82,3 +82,14 @@ Key routing rules:
 - Architecture review → invoke plan-eng-review
 - Save progress, checkpoint, resume → invoke checkpoint
 - Code quality, health check → invoke health
+
+## 하네스: 파이프라인 조율 팀
+
+**목표:** YAML 워크플로우 파이프라인 실행을 전문 에이전트 팀(parser/planner/executor/verifier)으로 조율하여 중간 산출물 추적과 교차 검증을 제공한다.
+
+**트리거:** 워크플로우 파이프라인 실행, "팀으로 실행", "하네스로 실행", "파이프라인 조율", "다시 실행", "부분 재실행", "실패한 step부터", "검증만 다시", "결정성 검증", "3회 실행 비교" 관련 요청 시 `pipeline-orchestration` 스킬을 사용하라. 단순 `/workflow-builder run <name>`은 기존 `skills/workflow-builder/SKILL.md`의 단일 경로로 처리 가능 — 오케스트레이터는 감사 추적·교차 검증·재실행이 필요한 고급 경로다.
+
+**변경 이력:**
+| 날짜 | 변경 내용 | 대상 | 사유 |
+|------|----------|------|------|
+| 2026-04-09 | 초기 구성: 파이프라인 조율 팀 4명 + 오케스트레이터 | `.claude/agents/`, `.claude/skills/` | 단일 SKILL.md에 몰려있던 파이프라인 로직을 파서·플래너·실행자·검증자로 분산, 에이전트 팀 모드로 조율 |
