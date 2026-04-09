@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0] - 2026-04-09
+
+### Added
+- **Step Output Pipeline**: 이전 step의 실행 결과를 다음 step에서 `${steps.<id>.output}`로 참조
+  - type: command의 마지막 command stdout 캡처
+  - type: ai의 응답 텍스트 캡처
+  - type: approval의 "approved"/"denied" 결과 캡처
+- 검증 규칙:
+  - 참조는 반드시 depends_on에 (직접/전이적) 포함되어야 함
+  - 존재하지 않는 step id 참조 시 에러
+  - 10KB 초과 시 경고, 100KB 초과 시 에러
+- validate 서브커맨드가 step output 참조를 검증
+- step-output-demo.yaml: 2개 독립 step → 결합 step → AI 분석 파이프라인
+
+### Why
+/autoplan review (v0.3.0)에서 type: api/skill의 "숨겨진 비용"으로 지목된 step output pipeline이 이제 구현되었습니다. 이것은 Phase 4+ 기능들(type: api 등)의 prerequisite 파운데이션입니다.
+
 ## [0.3.2] - 2026-04-08
 
 ### Added

@@ -29,9 +29,12 @@
 - ~~**Priority:** P3
   type: approval step~~ **Completed v0.3.1** (autoplan review에 따라 단독 구현)
 
+- ~~**Priority:** Phase 4+
+  step output → next step pipeline (type: api 등의 prerequisite)~~ **Completed v0.4.0** (type: api의 파운데이션)
+
 - **Priority:** Phase 4+
-  type: api — RFC 필요 (step output → next step pipeline 선행 필요)
-  *Deferred: /autoplan review found hidden cost*
+  type: api — step output pipeline 위에 구현 (now unblocked)
+  *Deferred: 개별 타입 구현*
 
 - **Priority:** Phase 4+
   type: skill — RFC 필요 (실행 메커니즘, 에러 신호 프로토콜, 결정성 검증 호환성 미정)
