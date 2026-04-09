@@ -1,0 +1,45 @@
+workflow:
+  name: "Step Output Pipeline 데모"
+  description: "이전 step의 output을 다음 step에서 참조하는 파이프라인 패턴"
+  version: "1.0.0"
+  tags: [pipeline, demo, v0.4]
+
+config:
+  base:
+    TARGET_DIR: "."
+
+steps:
+  - id: count-files
+    name: "파일 개수 확인"
+    type: command
+    commands:
+      - 'ls ${TARGET_DIR} | wc -l | tr -d " "'
+    on_failure: abort
+
+  - id: get-branch
+    name: "Git 브랜치 확인"
+    type: command
+    commands:
+      - 'git branch --show-current'
+    on_failure: abort
+
+  - id: report
+    name: "결과 보고 (이전 outputs 결합)"
+    type: command
+    description: "count-files와 get-branch의 output을 받아서 문장 생성"
+    commands:
+      - 'echo "=========================="'
+      - 'echo "디렉토리: ${TARGET_DIR}"'
+      - 'echo "파일 개수: ${steps.count-files.output}"'
+      - 'echo "현재 브랜치: ${steps.get-branch.output}"'
+      - 'echo "=========================="'
+    depends_on: [count-files, get-branch]
+    on_failure: abort
+
+  - id: analyze
+    name: "AI 분석 (report output 참조)"
+    type: ai
+    description: "report의 출력을 AI가 분석"
+    prompt: "위 report step의 결과(${steps.report.output})를 한 줄로 요약하고, 이 디렉토리가 어떤 프로젝트인지 추측하세요."
+    depends_on: [report]
+    on_failure: continue

@@ -151,13 +151,49 @@ d: depends_on [a, b]
 각 step의 `commands[]` 문자열에서 `${VAR_NAME}` 패턴을 찾아 `config.base`의 값으로 치환한다.
 
 **치환 규칙:**
-- 치환 대상: `config.base`에 키가 존재하는 `${KEY}` 패턴만
+- 치환 대상 1: `config.base`에 키가 존재하는 `${KEY}` 패턴 (전통 변수)
+- 치환 대상 2: `${steps.<id>.output}` 패턴 (step output 참조, 아래 참조)
 - 치환 금지: `$(...)` (shell subcommand), `` `...` `` (backtick), `$VAR` (중괄호 없는 형태)
 - 정의되지 않은 `${VAR_NAME}` 발견 시: "경고: 변수 '${VAR_NAME}'이 config.base에 정의되지 않았습니다" 출력. 원본 유지.
 
+**Step Output Pipeline (v0.4.0+):**
+
+이전 step의 실행 결과를 다음 step에서 참조할 수 있다.
+
+- **문법**: `${steps.<step-id>.output}`
+- **동작**: 해당 step의 **마지막 command의 stdout** 전체로 치환 (trailing newline 제거)
+- **type: command**: 마지막 command의 stdout
+- **type: ai**: AI step의 응답 텍스트
+- **type: approval**: "approved" 또는 "denied" 문자열
+
+**참조 제약:**
+- 참조하는 step은 반드시 `depends_on`에 명시되어야 한다. 그렇지 않으면 "에러: step '[current]'가 '${steps.[ref].output}'을 참조하지만 depends_on에 없습니다." 출력 후 중단.
+- 존재하지 않는 step id 참조: "에러: step 'ref-id'가 존재하지 않습니다." 출력 후 중단.
+- 건너뛴 step의 output 참조: "" (빈 문자열).
+- 순환 참조는 depends_on 자체로 이미 차단됨.
+
+**크기 제약:**
+- output이 10KB를 초과하면 경고: "경고: step '[id]'의 output이 [size]입니다. 10KB를 초과하면 변수 치환 시 성능 저하 가능." 출력 후 계속 진행.
+- output이 100KB를 초과하면: "에러: step '[id]'의 output이 100KB를 초과합니다 ([size]). 변수 치환 불가." 출력 후 중단.
+
 **보안 경고:**
-- `config.base` 값에 쉘 메타문자(`;`, `|`, `&&`, `||`, `` ` ``)가 포함되어 있으면:
+- `config.base` 값 또는 step output에 쉘 메타문자(`;`, `|`, `&&`, `||`, `` ` ``)가 포함되어 있으면:
   "경고: 변수 '${KEY}'의 값에 쉘 메타문자가 포함되어 있습니다. 의도적인지 확인하세요." 출력.
+
+**예시:**
+```yaml
+steps:
+  - id: fetch-count
+    type: command
+    commands:
+      - "ls | wc -l"
+
+  - id: report
+    type: command
+    depends_on: [fetch-count]
+    commands:
+      - "echo '파일 개수: ${steps.fetch-count.output}'"
+```
 
 ### 5.5단계: 실행 전 확인
 
@@ -183,6 +219,16 @@ Step 2: [step.name] (id: [step.id])
 ### 6단계: 실행 (병렬 레벨 루프)
 
 4단계에서 계산된 병렬 레벨 순서대로 실행한다.
+
+**Step output 캡처 (v0.4.0+):**
+각 step 실행 후 **output을 메모리에 기억**한다. 이후 step의 변수 치환에서 `${steps.<id>.output}` 참조를 위해 필요.
+
+- type: command: 마지막 command의 stdout (trailing newline 제거)
+- type: ai: AI 응답 텍스트
+- type: approval: "approved" 또는 "denied"
+- 실패/건너뛴 step: 빈 문자열
+
+Output은 현재 워크플로우 실행 중에만 유효. 다음 워크플로우 실행 시 초기화.
 
 **각 레벨 처리:**
 1. 같은 레벨에 step이 1개면: 단일 실행
@@ -383,6 +429,8 @@ cp "<found_template_path>" "<destination_dir>/<workflow_name>.yaml"
 3. `run`의 3단계 검증을 수행한다
 4. 추가 검증:
    - commands에서 참조하는 `${VAR}` 변수가 config.base 또는 모든 profiles에 정의되어 있는지
+   - commands에서 참조하는 `${steps.<id>.output}`의 `<id>`가 존재하는지
+   - `${steps.<id>.output}` 참조 시 해당 `<id>`가 현재 step의 depends_on에 (직접 또는 전이적으로) 포함되어 있는지
    - depends_on 순환 참조 여부
    - 4단계 병렬 레벨 계산 시도 (순환 감지)
 5. 결과 출력:
@@ -432,10 +480,11 @@ steps:                         # 필수, 1개 이상
     description: "설명"        # 선택
     commands:                  # type: command일 때 필수
       - "shell command ${VAR_NAME}"
+      - "echo 'prev: ${steps.other-id.output}'"  # 이전 step output 참조
     prompt: "AI에게 요청할 내용"  # type: ai일 때 필수
     message: "사용자 확인 메시지"  # type: approval일 때 필수
     default: deny              # type: approval일 때 선택 (approve | deny, 기본: deny)
-    depends_on: [other-id]     # 선택
+    depends_on: [other-id]     # 선택 (step output 참조 시 필수)
     on_failure: abort          # 선택 (abort | continue, 기본: abort)
 ```
 
