@@ -2,3 +2,6 @@
 .claude/settings.local.json
 .workflows/.generated/
 .workflows/.runs/
+repomix-output.xml
+graphify-out/cache/
+graphify-out/.graphify_*
