@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.0] - 2026-04-11
+
+### Added
+- **type: api step**: YAML에서 선언적으로 HTTP API를 호출하는 새로운 step 타입
+  - `method`, `url`, `headers`, `body`, `timeout` 지원
+  - `expect.status` 기본 `[200-299]`로 HTTP 에러 자동 감지
+  - `retry` 설정: 숫자 shorthand (`retry: 3`) 또는 객체 (`{max, delay, on}`)
+  - `retry.on` 기본 `[429, 500, 502, 503, 504]` + exponential backoff
+  - curl exit code→한국어 에러 메시지 매핑 (6=DNS, 7=연결 거부, 28=타임아웃, 35=SSL)
+  - `---HTTP_STATUS---` sentinel 기반 response body/status code 분리
+  - heredoc 기반 body 전달로 shell injection 방지
+  - 민감 헤더 패턴 기반 마스킹 (auth/key/token/secret/cookie)
+  - step output pipeline과 완전 통합 (`${steps.<id>.output}` → response body)
+  - 병렬 실행 지원 (command와 동일)
+- `api-demo.yaml`: JSONPlaceholder API를 사용한 GET/POST 예시 워크플로우
+- `api-basic` 템플릿: `/workflow-builder create api-basic`으로 빠른 시작
+- `validate --repeat N`에서 api step은 curl 명령 비교만 수행 (비결정적 응답 제외)
+
+### Why
+/autoplan 리뷰(CEO/Eng/DX 3-phase)에서 에러 처리가 type: api의 핵심 가치로 확인됨. Approach A(minimal curl wrapper)로 시작하되, expect.status 기본값, curl exit code 매핑, sentinel 분리, heredoc injection 방지를 포함하여 raw curl 대비 확실한 차별점을 제공.
+
 ## [0.4.0] - 2026-04-09
 
 ### Added

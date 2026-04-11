@@ -84,11 +84,18 @@ YAML 내용에서 다음을 추출:
 각 step에서 추출할 필드:
 - `id` (필수) — 고유 식별자
 - `name` (선택, 없으면 id 사용) — 표시 이름
-- `type` (필수) — `command`, `ai`, 또는 `approval`
+- `type` (필수) — `command`, `ai`, `approval`, 또는 `api`
 - `commands[]` (type: command일 때 필수) — 실행할 쉘 명령 목록
 - `prompt` (type: ai일 때 필수) — Claude가 처리할 프롬프트
 - `message` (type: approval일 때 필수) — 사용자에게 표시할 확인 메시지
 - `default` (type: approval일 때 선택, 기본값 `deny`) — `approve` 또는 `deny`
+- `method` (type: api일 때 필수) — `GET`, `POST`, `PUT`, `DELETE`, `PATCH`
+- `url` (type: api일 때 필수) — 요청 URL (`${VAR}` 치환 지원)
+- `headers` (type: api일 때 선택) — 키-값 맵 (`${VAR}` 치환 지원)
+- `body` (type: api일 때 선택) — 요청 본문 (`${VAR}` 치환 지원, POST/PUT/PATCH용)
+- `timeout` (type: api일 때 선택, 기본값 30) — 요청 타임아웃 (초)
+- `retry` (type: api일 때 선택) — 재시도 설정. 숫자(`retry: 3` = max 3, delay 1초) 또는 객체(`{max, delay, on}`)
+- `expect` (type: api일 때 선택) — 응답 검증. `status` 미지정 시 기본 `[200-299]`
 - `depends_on[]` (선택) — 선행 step id 목록
 - `on_failure` (선택, 기본값 `abort`) — `abort` 또는 `continue`
 - `description` (선택) — 단계 설명
@@ -99,11 +106,16 @@ YAML 내용에서 다음을 추출:
 - `workflow.name` 존재 여부
 - `steps`가 비어있지 않은지
 - 각 step에 `id`, `type`, `commands`가 있는지
-- `type`이 `command`, `ai`, 또는 `approval`인지 (아니면 "지원하지 않는 타입입니다: [type]" 경고 후 건너뜀)
+- `type`이 `command`, `ai`, `approval`, 또는 `api`인지 (아니면 "지원하지 않는 타입입니다: [type]" 경고 후 건너뜀)
   - 건너뛴 step은 의존성 해결 시 "완료"로 간주한다. 해당 step에 의존하는 다른 step은 정상적으로 실행된다.
 - type: command인 step에 `commands`가 있는지
 - type: ai인 step에 `prompt`가 있는지
 - type: approval인 step에 `message`가 있는지
+- type: api인 step에 `method`와 `url`이 있는지
+- type: api인 step의 `method`가 `GET`, `POST`, `PUT`, `DELETE`, `PATCH` 중 하나인지
+- type: api인 step에 `body`가 있고 `method`가 `GET`이면 경고 (RFC상 허용되지만 비관행)
+- type: api인 step의 `expect.status`가 숫자 배열인지 (지정된 경우)
+- type: api인 step의 `retry`가 숫자 또는 `{max, delay, on}` 객체인지 (지정된 경우)
 - step id 중복 없는지
 - `depends_on`의 모든 참조가 존재하는 step id인지
 
@@ -295,7 +307,68 @@ e) 사용자 응답에 따라:
 
 **Timeout**: type: approval은 사용자 응답까지 **무기한 blocking**이다. prompt-only 아키텍처에서 timeout 메커니즘은 지원하지 않는다. 자동화 시나리오(hooks, scheduler)에서 사용하려면 `--auto-approve` 같은 외부 override가 필요 (Phase 4+). MVP에서는 대화형 사용만 지원.
 
-type이 command/ai/approval가 아닌 step은:
+**type: api인 경우:**
+```
+a) 출력: "🌐 Step [N]/[total]: [step.name] (id: [step.id], type: api)"
+b) description이 있으면 출력: "  [description]"
+c) step의 url, headers, body에서 ${VAR} 변수를 치환한다 (5단계와 동일 규칙)
+d) retry 설정을 정규화한다:
+   - 숫자 (예: retry: 3) → {max: 3, delay: 1, on: [429, 500, 502, 503, 504]}
+   - 객체 → {max, delay, on} (on 미지정 시 기본 [429, 500, 502, 503, 504])
+   - 미지정 → 재시도 없음
+e) expect.status를 정규화한다:
+   - 미지정 시 기본 [200-299] (200~299 범위의 모든 status code)
+   - 지정 시 해당 배열 사용
+f) curl 명령을 조립한다:
+   curl -s -S -w "\n---HTTP_STATUS---\n%{http_code}" \
+     -X [method] \
+     [각 header에 대해 -H "Key: Value"] \
+     [body가 있으면 --data-raw 'body' 대신 heredoc 사용] \
+     --max-time [timeout, 기본 30] \
+     --max-filesize 104857600 \
+     -L \
+     "[url]"
+
+   body 전달 시 shell injection 방지를 위해 heredoc 사용:
+     curl ... -d @- <<'CURL_BODY_EOF'
+     [치환된 body 내용]
+     CURL_BODY_EOF
+
+g) Bash 도구로 curl을 실행한다 (timeout: timeout*1000 + 10000ms 여유)
+h) 응답에서 body와 status code를 분리한다:
+   - "---HTTP_STATUS---" sentinel을 기준으로 분리
+   - sentinel 앞: response body
+   - sentinel 뒤: HTTP status code
+i) HTTP status code를 expect.status와 비교한다:
+   - 범위 표기 (200-299): status >= 200 && status <= 299
+   - 배열 표기 ([200, 201]): status가 배열에 포함
+   - 일치: 성공
+   - 불일치 + retry 설정 있고 status가 retry.on에 포함:
+     "  재시도 [attempt]/[max] (HTTP [status], [delay * 2^(attempt-1)]초 후 재시도)"
+     exponential backoff로 대기 후 f)부터 재실행
+   - 불일치 + retry 소진 또는 retry 없음:
+     on_failure == "abort":
+       "Step [id] 실패 (HTTP [status]). [에러 메시지]. 워크플로우를 중단합니다."
+     on_failure == "continue":
+       "Step [id] 실패 (HTTP [status]). continue 설정으로 다음 step으로 진행합니다."
+j) curl exit code가 0이 아닌 경우 (네트워크 에러):
+   curl exit code를 매핑한다:
+   - 6: "DNS 확인 실패: [url]의 호스트를 찾을 수 없습니다"
+   - 7: "연결 거부: [url]에 연결할 수 없습니다"
+   - 28: "요청 시간 초과: [timeout]초 내에 응답을 받지 못했습니다"
+   - 35: "SSL/TLS 연결 실패"
+   - 기타: "curl 에러 (exit code: [code])"
+   on_failure 정책에 따라 abort 또는 continue
+k) 성공 시:
+   - response body를 step output으로 캡처 (trailing newline 제거)
+   - "  Step [id] 완료 (HTTP [status], [body 크기])"
+```
+
+**type: api의 병렬 실행**: type: api step은 type: command와 동일하게 병렬 실행 가능. 같은 레벨의 다른 api/command step과 함께 같은 메시지에서 여러 Bash 호출로 동시 실행.
+
+**type: api의 실행 전 확인 (5.5단계)**: curl 명령을 표시할 때, 민감 헤더를 마스킹한다. 헤더 키에 `auth`, `key`, `token`, `secret`, `cookie` (대소문자 무시)가 포함되면 값을 `***REDACTED***`로 표시. URL의 query parameter에 같은 패턴이 포함되면 값도 마스킹.
+
+type이 command/ai/approval/api가 아닌 step은:
 ```
 ⏭ Step [N]/[total]: [step.name] (건너뜀 - 미지원 타입: [type])
 ```
@@ -445,9 +518,11 @@ cp "<found_template_path>" "<destination_dir>/<workflow_name>.yaml"
 2. 변수 치환을 N번 반복 실행
 3. N번의 결과가 모두 동일한지 비교
 4. 각 step의 commands(치환 후)와 실행 순서가 N번 모두 일치하는지 확인
+   - **type: api step**: 치환된 curl 명령(url, headers, body)만 비교한다. 실제 HTTP 호출은 수행하지 않는다 (API 응답은 비결정적).
 5. 결과 출력:
    - 일치: "결정성 검증 통과 (N회 동일 결과)"
    - 불일치: "비결정성 감지: [차이점 설명]" 출력. 어떤 step의 어떤 부분이 달라졌는지 표시.
+   - type: api가 포함된 경우: "참고: api step은 curl 명령 비교만 수행 (HTTP 응답은 비결정적이므로 실행 제외)"
 
 이 검증은 prompt-only 아키텍처가 동일 입력에 대해 동일 출력을 생성하는지 확인한다.
 
@@ -476,7 +551,7 @@ config:
 steps:                         # 필수, 1개 이상
   - id: step-id               # 필수, 고유
     name: "표시 이름"          # 선택 (없으면 id 사용)
-    type: command              # 필수 (command | ai | approval)
+    type: command              # 필수 (command | ai | approval | api)
     description: "설명"        # 선택
     commands:                  # type: command일 때 필수
       - "shell command ${VAR_NAME}"
@@ -484,6 +559,15 @@ steps:                         # 필수, 1개 이상
     prompt: "AI에게 요청할 내용"  # type: ai일 때 필수
     message: "사용자 확인 메시지"  # type: approval일 때 필수
     default: deny              # type: approval일 때 선택 (approve | deny, 기본: deny)
+    method: GET                # type: api일 때 필수 (GET|POST|PUT|DELETE|PATCH)
+    url: "https://api.example.com/resource"  # type: api일 때 필수
+    headers:                   # type: api일 때 선택
+      Authorization: "Bearer ${TOKEN}"
+    body: '{"key": "value"}'   # type: api일 때 선택 (POST/PUT/PATCH용)
+    timeout: 30                # type: api일 때 선택 (초, 기본: 30)
+    retry: 3                   # type: api일 때 선택 (숫자 또는 {max, delay, on} 객체)
+    expect:                    # type: api일 때 선택 (미지정 시 기본 [200-299])
+      status: [200, 201]
     depends_on: [other-id]     # 선택 (step output 참조 시 필수)
     on_failure: abort          # 선택 (abort | continue, 기본: abort)
 ```

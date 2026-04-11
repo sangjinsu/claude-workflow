@@ -1,0 +1,55 @@
+workflow:
+  name: "API 호출 데모"
+  description: "type: api로 REST API를 호출하고 응답을 다음 step에서 활용하는 워크플로우"
+  version: "1.0.0"
+  tags: [api, demo, rest]
+
+config:
+  base:
+    BASE_URL: "https://jsonplaceholder.typicode.com"
+    USER_ID: "1"
+
+steps:
+  - id: fetch-user
+    name: "사용자 조회"
+    type: api
+    description: "JSONPlaceholder API에서 사용자 정보를 가져옵니다"
+    method: GET
+    url: "${BASE_URL}/users/${USER_ID}"
+    timeout: 10
+    on_failure: abort
+
+  - id: fetch-posts
+    name: "게시물 조회"
+    type: api
+    description: "해당 사용자의 게시물 목록을 가져옵니다"
+    method: GET
+    url: "${BASE_URL}/users/${USER_ID}/posts"
+    timeout: 10
+    on_failure: abort
+
+  - id: create-post
+    name: "게시물 생성"
+    type: api
+    description: "새 게시물을 POST로 생성합니다"
+    method: POST
+    url: "${BASE_URL}/posts"
+    headers:
+      Content-Type: "application/json"
+    body: '{"title": "워크플로우 테스트", "body": "type: api step으로 생성된 게시물", "userId": ${USER_ID}}'
+    expect:
+      status: [200, 201]
+    depends_on: [fetch-user]
+    on_failure: abort
+
+  - id: report
+    name: "결과 보고"
+    type: command
+    description: "API 호출 결과를 요약합니다"
+    commands:
+      - 'echo "=== API 데모 결과 ==="'
+      - 'echo "사용자 정보: ${steps.fetch-user.output}" | head -c 200'
+      - 'echo ""'
+      - 'echo "생성된 게시물: ${steps.create-post.output}" | head -c 200'
+    depends_on: [fetch-user, create-post]
+    on_failure: continue

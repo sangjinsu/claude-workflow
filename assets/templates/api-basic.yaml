@@ -1,0 +1,30 @@
+workflow:
+  name: "API 워크플로우"
+  description: "REST API를 호출하는 기본 워크플로우"
+  version: "1.0.0"
+  tags: [api]
+
+config:
+  base:
+    BASE_URL: "https://api.example.com"
+    API_TOKEN: "your-token-here"
+
+steps:
+  - id: api-call
+    name: "API 호출"
+    type: api
+    method: GET
+    url: "${BASE_URL}/endpoint"
+    headers:
+      Authorization: "Bearer ${API_TOKEN}"
+    timeout: 30
+    retry: 3
+    on_failure: abort
+
+  - id: process
+    name: "결과 처리"
+    type: command
+    commands:
+      - 'echo "응답: ${steps.api-call.output}"'
+    depends_on: [api-call]
+    on_failure: continue
